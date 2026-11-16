@@ -13,3 +13,6 @@
 
 # Patches must reach `git apply` byte for byte. No conversion, in either direction.
 *.patch -text
+
+# The PGO profile is binary; never convert it.
+*.profdata binary

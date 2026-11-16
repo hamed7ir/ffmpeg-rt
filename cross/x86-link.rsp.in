@@ -1,0 +1,4 @@
+-machine:x86
+-libpath:"@VCTOOLS@/lib/x86"
+-libpath:"@WINSDK@/Lib/@WINSDKINCVER@/ucrt/x86"
+-libpath:"@WINSDK@/Lib/@WINSDKINCVER@/um/x86"

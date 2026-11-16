@@ -1,0 +1,27 @@
+# ffmpeg-rt CMake toolchain for zlib, Windows ARM32 (armv7 Thumb-2, IMAGE_FILE_MACHINE_ARMNT 0x01C4).
+# Template: scripts/gen-rsp.sh expands it into cross/cmake-arm32.cmake.
+#  - -vctoolsdir/-winsdkdir/-winsdkversion PIN the toolset and SDK (clang-cl would pick the newest
+#    MSVC, and 14.51 #errors on ARM32). Headers @WINSDKINCVER@, ARM32 libraries @WINSDKVER@.
+#  - CMAKE_SYSTEM_PROCESSOR is lowercase "arm".
+#  - Static CRT (/MT). Never pass flags through an env CFLAGS: it breaks CMake's MSVC
+#    architecture detection.
+set(CMAKE_SYSTEM_NAME Windows)
+set(CMAKE_SYSTEM_PROCESSOR arm)
+set(CMAKE_SYSTEM_VERSION 10.0)
+
+set(_RT "@RT2@")
+set(_PIN "--target=armv7-pc-windows-msvc -vctoolsdir \"@VCTOOLS@\" -winsdkdir \"@WINSDK@\" -winsdkversion @WINSDKINCVER@")
+set(CMAKE_C_COMPILER   "${_RT}/clang-cl.exe")
+set(CMAKE_AR           "${_RT}/llvm-lib.exe")
+set(CMAKE_LINKER       "${_RT}/lld-link.exe")
+set(CMAKE_RC_COMPILER  "${_RT}/llvm-rc.exe")
+set(CMAKE_MT           "${_RT}/llvm-mt.exe")
+set(CMAKE_C_FLAGS_INIT "${_PIN}")
+set(CMAKE_RC_FLAGS_INIT "-I \"@VCTOOLS@/include\" -I \"@WINSDK@/Include/@WINSDKINCVER@/um\" -I \"@WINSDK@/Include/@WINSDKINCVER@/shared\" -I \"@WINSDK@/Include/@WINSDKINCVER@/ucrt\"")
+set(_LIBPATHS "/libpath:\"@VCTOOLS@/lib/arm\" /libpath:\"@WINSDK@/Lib/@WINSDKVER@/ucrt/arm\" /libpath:\"@WINSDK@/Lib/@WINSDKVER@/um/arm\"")
+set(CMAKE_EXE_LINKER_FLAGS_INIT    "${_LIBPATHS}")
+set(CMAKE_SHARED_LINKER_FLAGS_INIT "${_LIBPATHS}")
+set(CMAKE_MODULE_LINKER_FLAGS_INIT "${_LIBPATHS}")
+set(CMAKE_MSVC_RUNTIME_LIBRARY "MultiThreaded")
+cmake_policy(SET CMP0091 NEW)
+set(CMAKE_FIND_ROOT_PATH_MODE_PROGRAM NEVER)

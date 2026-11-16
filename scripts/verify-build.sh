@@ -1,68 +1,39 @@
 #!/bin/sh
+# ffmpeg-rt :: check an installed build in dist/<arch>-<variant>/bin against the Windows RT 8.1 rules
+# (scripts/check-dlls.py: machine, OS/subsystem version, imports, static CRT, PDBs, NEON) and, for
+# arm32, rt2.x bug 0031 (scripts/pdata-calls.py: no call whose return address leaves its .pdata
+# function). Results in dist/<arch>-<variant>/checks/.
+#
+# Usage: sh scripts/verify-build.sh <arch> <variant>
 set -u
-# ---- configuration -------------------------------------------------------------------------
-# Every absolute path lives in config.sh at the repo root, and the root is derived from THIS
-# script's own location, so a clone builds wherever it is placed.
 FF_SELF=$0
 FF_ROOT=$(cd "$(dirname "$0")/.." && pwd)
 . "$FF_ROOT/config.sh"
 rt_check_config || exit 1
-export PATH="/usr/bin:$PATH"
-B=$FF_ROOT/build/msys2-shared
-RO="$RT2/llvm-readobj.exe"; OD="$RT2/llvm-objdump.exe"; NM="$RT2/llvm-nm.exe"
-cd "$B"
-
-echo "############ S4.1 -- every object must be ARMNT 0x1C4 ############"
-mapfile -t OBJS < <(find . -name '*.o' | sort)
-EXP=${#OBJS[@]}; ATT=0; A=0; OTH=0; UNR=0
-: > /tmp/bad.txt
-for o in "${OBJS[@]}"; do
-  ATT=$((ATT+1))
-  M=$("$RO" --file-headers "$o" 2>/dev/null | grep -m1 -i 'Machine:')
-  case "$M" in
-    *ARMNT*) A=$((A+1));;
-    "")      UNR=$((UNR+1)); echo "UNREADABLE $o" >> /tmp/bad.txt;;
-    *)       OTH=$((OTH+1)); echo "$M  $o" >> /tmp/bad.txt;;
-  esac
-done
-echo "objects found = $EXP, inspected = $ATT, ARMNT = $A, other = $OTH, unreadable = $UNR"
-[ "$EXP" -eq "$ATT" ] && echo "DENOMINATOR OK" || echo "!!! DENOMINATOR MISMATCH !!!"
-[ "$EXP" -gt 0 ] || echo "!!! ZERO OBJECTS -- NOT A PASS !!!"
-[ -s /tmp/bad.txt ] && { echo "--- NON-ARMNT / UNREADABLE ---"; cat /tmp/bad.txt; }
-echo "--- CONTROL: reader must be able to say NO ---"
-"$RO" --file-headers $FF_ROOT/build/noext/h.obj 2>/dev/null | grep -m1 -i 'Machine:' | sed 's/^/  x64 control: /'
-
-echo
-echo "############ S4.2 -- the library set ############"
-find . \( -name '*.dll' -o -name '*.lib' -o -name '*.a' \) -printf '%10s  %p\n' 2>/dev/null | sort -k2
-
-echo
-echo "############ NEON in the SHIPPED DLLs (not just the .o) ############"
-NEONRE='	(vld[1-4]|vst[1-4]|vadd|vsub|vmul|vmla|vmls|vmov|vdup|vshl|vshr|vrshr|vqadd|vqsub|vrev|vext|vzip|vuzp|vtrn|vabs|vneg|vand|vorr|veor|vbic|vbsl|vbit|vbif|vmax|vmin|vpadd|vpmax|vpmin|vrhadd|vhadd|vhsub|vqmovn|vqmovun|vmovl|vmovn|vaddw|vsubw|vaddl|vsubl|vcgt|vcge|vceq|vtst|vcnt|vclz|vrecpe|vrsqrte|vtbl|vtbx|vswp|vqrshrn|vqshrn|vrshrn|vshrn|vmlal|vmull|vqdmul|vabd|vsri|vsli|vcvt|vpaddl|vqrdmul)'
-for d in $(find . -name '*.dll' | sort); do
-  "$OD" -d "$d" > /tmp/d.txt 2>/dev/null
-  T=$(grep -cE '^ *[0-9a-f]+:' /tmp/d.txt)
-  V=$(grep -E "$NEONRE" /tmp/d.txt | grep -cE '[[:space:]](d[0-9]+|q[0-9]+|\{d)')
-  printf "  %-34s instructions=%-9s NEON=%s\n" "$(basename "$d")" "$T" "$V"
-done
-
-echo
-echo "############ ARM asm objects actually built ############"
-find . -path '*arm*' -name '*.o' | wc -l | sed 's/^/  arm .o count = /'
-find . -path '*arm*' -name '*neon*.o' | wc -l | sed 's/^/  neon .o count = /'
-
-echo
-echo "############ ADDENDUM 3 -- undefined __aeabi_* in real output ############"
-: > /tmp/u.txt; N=0
-for o in "${OBJS[@]}"; do N=$((N+1)); "$NM" --undefined-only "$o" 2>/dev/null >> /tmp/u.txt; done
-echo "  objects inspected = $N"
-echo "  undefined __aeabi_* = $(grep -c '__aeabi_' /tmp/u.txt || true)"
-echo "  CONTROL (seeded line matches?) = $(echo '  U __aeabi_idiv' | grep -c '__aeabi_')"
-grep '__aeabi_' /tmp/u.txt | sort -u | head
-
-echo
-echo "############ RT 8.1 load gate on the DLLs (must be <= 6.3) ############"
-for d in $(find . -name '*.dll' | sort); do
-  printf "  %-34s %s\n" "$(basename "$d")" \
-    "$("$RO" --file-headers "$d" 2>/dev/null | grep -E 'MajorOperatingSystemVersion|MinorOperatingSystemVersion|MajorSubsystemVersion|MinorSubsystemVersion|^  Machine' | tr -s ' ' | tr '\n' ' ')"
-done
+ARCH=${1:-}; VARIANT=${2:-}
+w() { cygpath -m "$1" 2>/dev/null || echo "$1"; }
+u() { cygpath -u "$1" 2>/dev/null || echo "$1"; }
+DU=$(u "$DIST")/$ARCH-$VARIANT
+[ -d "$DU/bin" ] || { echo "no $DU/bin: run sh scripts/build.sh $ARCH $VARIANT"; exit 1; }
+mkdir -p "$DU/checks"
+export MSYS2_ARG_CONV_EXCL='*'          # every path handed to a native tool below is F:/... already
+OBJDUMP=$(w "$RT2")/llvm-objdump.exe
+"$PYTHON" -I "$FF_ROOT_W/scripts/check-dlls.py" "$(w "$DU")/bin" "$ARCH" "$(w "$DU")/checks" "$ARCH-$VARIANT" \
+  "$(w "$VCTOOLS")/bin/Hostx64/x64/dumpbin.exe" "$OBJDUMP"
+fail=$?
+if [ "$ARCH" = arm32 ]; then
+  echo "-- rt2.x bug 0031 --"
+  R=$DU/checks/$ARCH-$VARIANT-0031.txt
+  : > "$R"
+  t=0
+  for f in "$DU"/bin/*.dll "$DU"/bin/*.exe; do
+    t=$((t+1))
+    "$PYTHON" -I "$FF_ROOT_W/scripts/pdata-calls.py" "$OBJDUMP" "$(w "$f")" >> "$R" 2>&1 \
+      || { echo "  pdata-calls failed on $f"; fail=1; }
+  done
+  n=$(grep -c "calls whose return address leaves their function: 0 " "$R")
+  echo "  files with no such call: $n of $t"
+  [ "$n" -eq "$t" ] || { grep "leaves their function" "$R"; fail=1; }
+fi
+[ $fail -eq 0 ] && echo "VERIFY PASS ($ARCH $VARIANT)" || echo "VERIFY FAIL ($ARCH $VARIANT)"
+exit $fail

@@ -1,0 +1,4 @@
+--target=i686-pc-windows-msvc
+-vctoolsdir "@VCTOOLS@"
+-winsdkdir "@WINSDK@"
+-winsdkversion @WINSDKINCVER@

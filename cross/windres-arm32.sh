@@ -1,9 +1,8 @@
 #!/bin/sh
 # ffmpeg-rt: resource compiler wrapper. Two separate defects to fix here.
 #
-# (1) BATCH 0.4 predicted this exactly: "rc.exe cannot see those flags and needs
-#     INCLUDE exported to the same directories". FFmpeg's .rc rule (common.mak:117)
-#     passes only $(IFLAGS), so the resource preprocessor cannot find <windows.h>.
+# (1) FFmpeg's .rc rule (common.mak:117) passes only $(IFLAGS), so the resource
+#     preprocessor cannot find <windows.h>: the include folders go in here.
 #
 # (2) llvm-windres defaults the OUTPUT COFF MACHINE TO THE HOST. Without --target
 #     it silently emits IMAGE_FILE_MACHINE_AMD64 (0x8664) into an ARM32 build --
@@ -14,7 +13,7 @@ _d=$(cd "$(dirname "$0")/.." && pwd)
 . "$_d/config.sh"
 
 M="$VCTOOLS"
-S="$WINSDK/Include/10.0.19041.0"
+S="$WINSDK/Include/$WINSDKINCVER"
 exec "$RT2/llvm-windres.exe" \
   --target=arm \
   --preprocessor-arg=--target=armv7-pc-windows-msvc \

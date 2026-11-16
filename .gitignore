@@ -37,11 +37,20 @@ RECIPE.md
 notes/
 CLAUDE.md
 
-# Generated at build time from config.sh
+# Generated at build time from config.sh (scripts/gen-rsp.sh expands the cross/*.in templates)
 cross/arm32-link.rsp
 cross/arm32-msvc.rsp
+cross/x86-link.rsp
+cross/x86-msvc.rsp
 cross/x64-link.rsp
 cross/x64-msvc.rsp
+cross/meson-arm32.ini
+cross/meson-x86.ini
+cross/cmake-arm32.cmake
+cross/cmake-x86.cmake
+
+# Raw counts from a training run. The merged pgo/ffshared-arm32.profdata IS tracked.
+*.profraw
 
 # Editor / OS noise
 .vscode/

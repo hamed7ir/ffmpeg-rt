@@ -1,0 +1,22 @@
+# ffmpeg-rt meson cross file for dav1d, Windows ARM32 (clang-cl, lld-link, llvm-lib), static CRT.
+# Template: scripts/gen-rsp.sh expands it into cross/meson-arm32.ini. With clang-cl, meson >= 0.58
+# assembles dav1d's GAS-syntax NEON .S files with clang-cl itself (no gas-preprocessor).
+# meson's clang-cl detection runs a bare "lld-link" from PATH, so scripts/build-deps.sh puts
+# RT2 first on PATH.
+[binaries]
+c = ['@RT2@/clang-cl.exe', '--target=armv7-pc-windows-msvc', '-vctoolsdir', '@VCTOOLS@', '-winsdkdir', '@WINSDK@', '-winsdkversion', '@WINSDKINCVER@']
+cpp = ['@RT2@/clang-cl.exe', '--target=armv7-pc-windows-msvc', '-vctoolsdir', '@VCTOOLS@', '-winsdkdir', '@WINSDK@', '-winsdkversion', '@WINSDKINCVER@']
+ar = '@RT2@/llvm-lib.exe'
+windres = '@RT2@/llvm-rc.exe'
+strip = '@RT2@/llvm-strip.exe'
+
+[built-in options]
+c_link_args = ['/libpath:@VCTOOLS@/lib/arm', '/libpath:@WINSDK@/Lib/@WINSDKVER@/ucrt/arm', '/libpath:@WINSDK@/Lib/@WINSDKVER@/um/arm']
+cpp_link_args = ['/libpath:@VCTOOLS@/lib/arm', '/libpath:@WINSDK@/Lib/@WINSDKVER@/ucrt/arm', '/libpath:@WINSDK@/Lib/@WINSDKVER@/um/arm']
+b_vscrt = 'mt'
+
+[host_machine]
+system = 'windows'
+cpu_family = 'arm'
+cpu = 'armv7'
+endian = 'little'

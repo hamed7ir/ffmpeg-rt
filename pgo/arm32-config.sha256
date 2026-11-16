@@ -1,0 +1,1 @@
+e4b97d79bf47b5c0b6697100f21aab2f1894d747e642379b322fbf6e19871d7b  arm32 config.h + config_components.h of the build the profile counted, without the lines matching FFMPEG_CONFIGURATION|CC_IDENT|FFMPEG_DATADIR|AVCONV_DATADIR|CONFIG_THIS_YEAR (scripts/gate-config.sh)
